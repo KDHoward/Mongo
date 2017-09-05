@@ -3,7 +3,7 @@ var Scraper = require('./scraper');
 var Pages = [];
 
 function generateUrls(limit) {
-    var url = 'http://localyellowpages.com/listing/';
+    var url = 'http://www.espn.com/nba/team/_/name/cle';
     var urls = [];
     var i;
     for (i = 1; i < limit; i++) {

@@ -1,65 +1,59 @@
-var http = require('http');
+var request = require('request');
 var cheerio = require('cheerio');
-var util = require('util');
-var EventEmitter = require('events').EventEmitter;
-var STATUS_CODES = http.STATUS_CODES;
 
-function Scraper (url) {
-    this.url = url;
-    this.init();
-}
+// this fucntion will scrape the NYTimes website (cb is our callback)
+var scrape = function(url, cb) {
 
-util.inherits(Scraper, EventEmitter);
-Scraper.prototype.init = function () {
-    var model;
-    var self = this;
-    self.on('loaded', function (html) {
-        model = self.parsePage(html);
-        self.emit('complete', model);
+  // if our url is the times home page (and it will be)...
+  if (url == "http://www.nytimes.com") {
+
+    // then use request to take in the body of the page's html
+    request(url, function(err, res, body) {
+
+      // load the body into cheerio's shorthand
+      var $ = cheerio.load(body);
+
+      // and make an empty object to save our article info
+      var articles = {};
+
+      // now, find each element that has the "theme-summary" class 
+      // (i.e, the section holding the articles)
+      $('.theme-summary').each(function(i, element){
+
+        // the text of any enclosed child elements with the story-heading class
+        // will be saved to the head variable
+
+        var head = $(this).children(".story-heading").text();
+        // the text of any enclosed child elements with the summary class
+        // will be saved to the sum variable
+
+        var sum = $(this).children(".summary").text();
+
+        // So long as our headline and sum aren't empty strings, do the following
+        if (head !== "" && sum !== ""){
+
+          // This section uses regular expressions and the trim function
+          // to tidy our headlines and summaries.
+          // We're basically removing extra lines, extra spacing, extra tabs,
+          // and other assorted scourges to typographical cleanliness.
+          var headNeat = head.replace(/(\r\n|\n|\r|\t|\s+)/gm, " ").trim();
+          var sumNeat = sum.replace(/(\r\n|\n|\r|\t|\s+)/gm, " ").trim();
+
+          // Initialize an array and put headNeat into it 
+          // and we will push more data into articles[i] below
+          articles[i] = [headNeat]; 
+          articles[i].push(sumNeat);
+        }
+      });
+
+      // with every article scraped into the articles object (good for testing)
+      console.log(articles); 
+
+      // now, pass articles into our callback function
+      cb(articles);
     });
-    self.loadWebPage();
-};
-Scraper.prototype.loadWebPage = function () {
-  var self = this;
-  console.log('\n\nLoading ' + website);
-  http.get(self.url, function (res) {
-    var body = '';
-   
-    if(res.statusCode !== 200) {
-      return self.emit('error', STATUS_CODES[res.statusCode]);
-    }
-    res.on('data', function (chunk) {
-      body += chunk;
-    });
-    res.on('end', function () {
-      self.emit('loaded', body);
-    });
-  })
-  .on('error', function (err) {
-    self.emit('error', err);
-  });      
+  }
 };
 
-Scraper.prototype.parsePage = function (html) {
-  var $ = cheerio.load(html);
-  var address = $('#address').text();
-  var tel = $('#tel').text();
-  var cell = $('#cell').text();
-  var fax = $('#fax').text();
-  var email = $('#email').text();
-  var website = $('#website').attr('href');
-  var postal =  $('#postal').text();
-  var model = {
-    title: address.trim().split('\n'),
-    email: email.trim(),
-    cell: cell.trim().split('\n'),
-    telephone: tel.trim().split('\n'),
-    fax: fax.trim().split('\n'),
-    website: website || '',
-    postalAddress: postal.trim().split('\n'),
-    address: address.trim().split('\n'),
-    url: this.url
-  };
-  return model;
-};
-module.exports = Scraper;
+// export the function, so other files in our backend can use it
+module.exports = scrape;
